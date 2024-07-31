@@ -18,10 +18,20 @@ const DATABASE_URL = process.env.DATABASE_URL
 const GOOGLE_ID = process.env.GOOGLE_ID
 const GOOGLE_SECRET = process.env.GOOGLE_SECRET
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://imuv21.netlify.app"
+];
 
 //just commenting this for production
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: "GET,POST,PUT,DELETE",
     credentials: true
 }));
