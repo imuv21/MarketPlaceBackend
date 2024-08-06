@@ -14,6 +14,28 @@ const notificationSchema = new mongoose.Schema({
     }
 });
 
+//message schema
+const messageSchema = new mongoose.Schema({
+    sender: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true,
+    },
+    receiver: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true,
+    },
+    content: {
+        type: String,
+        required: true,
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now,
+    }
+});
+
 //Schema
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -68,13 +90,15 @@ const userSchema = new mongoose.Schema({
 
     notifications: [notificationSchema],
 
+    messages: [messageSchema],
+
     friendReq: {
         type: Array,
-        default: [], 
+        default: [],
     },
     friends: {
         type: Array,
-        default: [], 
+        default: [],
     },
 
     movies: [

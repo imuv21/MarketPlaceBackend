@@ -42,6 +42,68 @@ const uploadPostersToCloudinary = (buffer) => {
 
 class userCont {
 
+
+    static sendMessages = async (req, res) => {
+        try {
+            const { senderId, receiverId, content } = req.body;
+            if (!senderId || !receiverId || !content) {
+                return res.status(400).send({ "status": "failed", "message": "All fields are required." });
+            }
+            const message = { sender: senderId, receiver: receiverId, content, timestamp: new Date() };
+
+            const senderUpdate = await userModel.findByIdAndUpdate(
+                senderId,
+                { $push: { messages: message } },
+                { new: true }
+            );
+
+            if (!senderUpdate) {
+                return res.status(404).send({ "status": "failed", "message": "Sender not found." });
+            }
+
+            return res.status(200).send({ "status": "success", "message": "Message sent" });
+        } catch (error) {
+            return res.status(500).send({ "status": "failed", "message": error.message });
+        }
+    }
+
+    static getMessages = async (req, res) => {
+        try {
+            const { senderId, receiverId } = req.params;
+
+            if (!senderId || !receiverId) {
+                return res.status(400).send({ "status": "failed", "message": "All fields are required." });
+            }
+
+            // Fetch messages for both sender and receiver
+            const senderMessages = await userModel.findById(senderId).select('messages').populate('messages.sender messages.receiver', 'firstName lastName email');
+            const receiverMessages = await userModel.findById(receiverId).select('messages').populate('messages.sender messages.receiver', 'firstName lastName email');
+            const receiver = await userModel.findById(receiverId).select('firstName lastName image isVerified');
+
+            if (!senderMessages || !receiverMessages) {
+                return res.status(404).send({ "status": "failed", "message": "Sender or receiver not found." });
+            }
+
+            // Combine and filter messages between the two users
+            const combinedMessages = [...senderMessages.messages, ...receiverMessages.messages];
+            const filteredMessages = combinedMessages.filter(
+                message =>
+                    (message.sender._id.toString() === senderId && message.receiver._id.toString() === receiverId) ||
+                    (message.sender._id.toString() === receiverId && message.receiver._id.toString() === senderId)
+            );
+
+            // Remove duplicates
+            const uniqueMessages = Array.from(new Set(filteredMessages.map(msg => msg._id.toString()))).map(id => filteredMessages.find(msg => msg._id.toString() === id));
+
+            // Sort messages by timestamp
+            uniqueMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+            return res.status(200).send({ "status": "success", "chat": uniqueMessages, "receiver": receiver });
+        } catch (error) {
+            return res.status(500).send({ "status": "failed", "message": error.message });
+        }
+    }
+
     static seeAllUsers = async (req, res) => {
         try {
             const userId = req.user._id;
@@ -50,7 +112,7 @@ class userCont {
                 return res.status(404).send({ "status": "failed", "message": "User not found" });
             }
             const friendsIds = user.friends.map(friendId => friendId.toString());
-            const allUsers = await userModel.find().select('firstName lastName country role isVerified image');
+            const allUsers = await userModel.find().select('firstName lastName country role friendReq isVerified image');
             const users = allUsers.filter(user => user._id.toString() !== userId.toString() && !friendsIds.includes(user._id.toString()));
 
             return res.status(200).send({ "status": "success", "message": "All users fetched successfully", "users": users });
@@ -116,6 +178,34 @@ class userCont {
         }
     }
 
+    static cancelFriendRequest = async (req, res) => {
+        try {
+            const { friendId } = req.body;
+            const userId = req.user._id;
+
+            const UserID = new mongoose.Types.ObjectId(userId);
+            const FriendID = new mongoose.Types.ObjectId(friendId);
+
+            const friend = await userModel.findById(FriendID);
+
+            if (!friend) {
+                return res.status(404).send({ "status": "failed", "message": "Friend not found" });
+            }
+
+            const existingFriendRequest = await userModel.findOne({ _id: FriendID, friendReq: { $in: [UserID] } });
+            if (!existingFriendRequest) {
+                return res.status(400).send({ "status": "failed", "message": "Friend request not found" });
+            }
+
+            await userModel.findByIdAndUpdate(FriendID, { $pull: { friendReq: UserID } });
+            await userModel.findByIdAndUpdate(FriendID, { $pull: { notifications: { type: "friend_request", from: UserID } } });
+
+            return res.status(200).send({ "status": "success", "message": "Friend request canceled successfully" });
+        } catch (error) {
+            return res.status(500).send({ "status": "failed", "message": error.message });
+        }
+    }
+
     static responseToFriendRequest = async (req, res) => {
         try {
             const { response, friendId } = req.body;
@@ -147,6 +237,30 @@ class userCont {
                     return res.status(500).send({ "status": "failed", "message": "An error occurred while rejecting friend request" });
                 }
             }
+        } catch (error) {
+            return res.status(500).send({ "status": "failed", "message": error.message });
+        }
+    }
+
+    static unfriend = async (req, res) => {
+        try {
+            const { friendId } = req.body;
+            const userId = req.user._id;
+
+            const UserID = new mongoose.Types.ObjectId(userId);
+            const FriendID = new mongoose.Types.ObjectId(friendId);
+
+            const user = await userModel.findOne({ _id: UserID, friends: { $in: [FriendID] } });
+
+            if (!user) {
+                return res.status(400).send({ "status": "failed", "message": "This user is not your friend" });
+            }
+
+            await userModel.findByIdAndUpdate(UserID, { $pull: { friends: FriendID } });
+            await userModel.findByIdAndUpdate(FriendID, { $pull: { friends: UserID, notifications: { type: "friend_request_accepted", from: UserID } } });
+            await userModel.findByIdAndUpdate(FriendID, { $push: { notifications: { type: "unfriend", from: UserID } } });
+
+            return res.status(200).send({ "status": "success", "message": "Unfriended successfully" });
         } catch (error) {
             return res.status(500).send({ "status": "failed", "message": error.message });
         }
@@ -388,7 +502,7 @@ class userCont {
         } catch (error) {
             console.error("Error deleting movie:", error);
             return res.status(500).send({ "status": "failed", "message": error.message });
-        } 
+        }
     }
 
     static verifyOtp = async (req, res) => {
@@ -470,6 +584,7 @@ class userCont {
                     if ((user.email === email) && isMatch) {
                         const token = jwt.sign({ userID: user._id }, process.env.JWT_SECRET_KEY, { expiresIn: '7d' });
                         const userResponse = {
+                            _id: user._id,
                             firstName: user.firstName,
                             lastName: user.lastName,
                             email: user.email,

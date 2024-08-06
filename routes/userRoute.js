@@ -32,7 +32,11 @@ router.delete('/notifications/:notificationId', userCont.deleteNotification);
 router.get('/friend-reqs', userCont.getFriendReqs);
 router.get('/friends', userCont.getFriends);
 router.post('/send-friend-request', userCont.sendFriendRequest);
+router.post('/cancel-friend-request', userCont.cancelFriendRequest);
 router.post('/response-friend-request', userCont.responseToFriendRequest);
+router.post('/unfriend', userCont.unfriend);
+router.post('/send-message', userCont.sendMessages);
+router.get('/get-message/:senderId/:receiverId', userCont.getMessages);
 router.get('/search', userCont.searchUsers);
 
 
