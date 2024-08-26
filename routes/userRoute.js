@@ -38,7 +38,7 @@ router.post('/unfriend', userCont.unfriend);
 router.post('/send-message', userCont.sendMessages);
 router.get('/get-message/:senderId/:receiverId', userCont.getMessages);
 router.get('/search', userCont.searchUsers);
-
+router.get('/get-orders', userCont.getOrders);
 
 
 export default router;

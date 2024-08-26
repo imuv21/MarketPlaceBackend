@@ -6,5 +6,4 @@ router.use(express.json());
 
 router.get('/mail-verification', userCont.mailVerification);
 
-
 export default router;

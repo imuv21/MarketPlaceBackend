@@ -1,15 +1,18 @@
-import userModel from "../models/User.js";
-import { validationResult } from "express-validator";
+
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import mongoose from "mongoose";
 import jwt from 'jsonwebtoken';
+import Razorpay from 'razorpay';
+import Paypal from 'paypal-rest-sdk';
 import dotenv from 'dotenv';
 dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
+import { validationResult } from "express-validator";
 import sendMail from '../helpers/mailer.js';
+import userModel from "../models/User.js";
 
-
+//Cloudinary
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -27,7 +30,6 @@ const uploadToCloudinary = (buffer) => {
         stream.end(buffer);
     });
 };
-
 const uploadPostersToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream({ folder: 'MarketPlace/Mcu' }, (error, result) => {
@@ -39,9 +41,112 @@ const uploadPostersToCloudinary = (buffer) => {
         stream.end(buffer);
     });
 };
+const FRONTEND_URL = process.env.FRONTEND_URL;
+
+//Razorpay
+const instance = new Razorpay({
+    key_id: process.env.RAZORPAY_API_KEY,
+    key_secret: process.env.RAZORPAY_API_SECRET,
+});
+
+//Paypal
+Paypal.configure({
+    mode: 'sandbox', // or live
+    client_id: process.env.PAYPAL_CLIENT_ID,
+    client_secret: process.env.PAYPAL_SECRET,
+});
+
 
 class userCont {
 
+    // payment conts
+
+    static failedPaypal = async (req, res) => {
+        return res.redirect(`${FRONTEND_URL}payment-failed`);
+    }
+
+    static getKey = async (req, res) => {
+        return res.status(200).json({ key: process.env.RAZORPAY_API_KEY });
+    }
+
+    static checkout = async (req, res) => {
+        try {
+            const { amount, currency } = req.body;
+            const userId = req.user._id;
+            if (!amount || !currency) {
+                return res.status(400).json({ status: "failed", message: "Amount and currency are required" });
+            }
+
+            const orderAmount = parseFloat(amount);
+            if (isNaN(orderAmount) || orderAmount <= 0) {
+                return res.status(400).json({ status: "failed", message: "Invalid amount provided" });
+            }
+
+            const options = { amount: Math.round(orderAmount * 100), currency, notes: { userId: userId } };
+
+            const order = await instance.orders.create(options);
+            return res.status(200).json({ status: "success", order });
+
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: error.message });
+        }
+    };
+
+    static paymentVerification = async (req, res) => {
+        try {
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+            const userId = req.params.userId;
+            if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+                return res.status(400).json({ status: "failed", message: "Razorpay credentials are missing" });
+            }
+
+            const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+            const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_API_SECRET).update(body).digest('hex');
+
+            const isAuthentic = expectedSignature === razorpay_signature;
+            if (isAuthentic) {
+
+                const orderData = { razorpay_order_id, razorpay_payment_id, razorpay_signature };
+                await userModel.findByIdAndUpdate(userId, { $push: { orders: orderData } }, { new: true });
+
+                return res.redirect(`${FRONTEND_URL}payment-success?reference=${razorpay_payment_id}`);
+
+            } else {
+                return res.status(400).json({ status: "failed", message: "Invalid signature. Payment verification failed." });
+            }
+
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    };
+
+    static getPaymentDetails = async (req, res) => {
+        try {
+            const { paymentId } = req.params;
+            const paymentDetails = await instance.payments.fetch(paymentId);
+            res.json({ status: "success", paymentDetails });
+        } catch (error) {
+            res.status(500).json({ status: "failed", message: error.message });
+        }
+    }
+
+    static getOrders = async (req, res) => {
+        try {
+            const userId = req.user._id;
+            const user = await userModel.findById(userId).select('orders');
+
+            if (!user) {
+                return res.status(404).json({ status: "failed", message: "User not found" });
+            }
+
+            return res.status(200).json({ status: "success", orders: user.orders });
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    };
+
+
+    //social conts
 
     static sendMessages = async (req, res) => {
         try {
@@ -376,67 +481,7 @@ class userCont {
         }
     }
 
-
-
-
-    static userSignup = async (req, res) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ success: false, errors: errors.array() });
-        }
-
-        const { firstName, lastName, email, password, confirmPassword, role, country } = req.body;
-
-        const user = await userModel.findOne({ email: email, role: role });
-        if (user) {
-            return res.status(400).send({ "status": "failed", "message": `User already exists as ${role}` });
-        } else {
-            if (firstName && lastName && email && password && confirmPassword && role && country) {
-                if (password !== confirmPassword) {
-                    res.status(400).send({ "status": "failed", "message": "Passwords do not match" });
-                } else {
-                    try {
-                        const salt = await bcrypt.genSalt(10);
-                        const hashPassword = await bcrypt.hash(password, salt);
-
-                        const otp = crypto.randomInt(100000, 999999).toString(); // Generate 6-digit OTP
-                        const otpExpiry = Date.now() + 15 * 60 * 1000; // OTP valid for 15 minutes
-
-                        let image = null;
-                        if (req.file) {
-                            image = await uploadToCloudinary(req.file.buffer);
-                        }
-
-                        const newUser = new userModel({ firstName, lastName, email, password: hashPassword, role, country, image, otp, otpExpiry });
-                        await newUser.save();
-
-                        const msg = `
-                        <div style="font-family: 'Roboto', sans-serif; width: 100%;">
-        <div style="background: #5AB2FF; padding: 10px 20px; border-radius: 3px; border: none">
-            <a href="" style="font-size:1.6em; color: white; text-decoration:none; font-weight:600">MarketPlace</a>
-        </div>
-        <p>Hello <span style="color: #5AB2FF; font-size: 1.2em; text-transform: capitalize;">${newUser.firstName}</span>!</p>
-        <p>Thank you for choosing MarketPlace. Use the following OTP to complete your Sign Up procedure. This OTP is valid for 15 minutes.</p>
-        <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
-            <div style="background: #5AB2FF; color: white; width: fit-content; border-radius: 3px; padding: 5px 10px; font-size: 1.4em;">${otp}</div>
-        </div>
-      
-        <p>Regards,</p>
-        <p>MarketPlace</p>
-    </div>
-                        `;
-
-                        await sendMail(newUser.email, 'Verify your email', msg);
-                        return res.status(201).send({ "status": "success", "message": `User created successfully. Please verify your email using the OTP sent to your email ${newUser.email}.` });
-                    } catch (error) {
-                        return res.status(500).send({ "status": "failed", "message": error.message });
-                    }
-                }
-            } else {
-                res.status(400).send({ "status": "failed", "message": "All fields are required" });
-            }
-        }
-    }
+    //movie conts
 
     static getMovie = async (req, res) => {
         const user = await userModel.findById(req.user._id);
@@ -502,6 +547,67 @@ class userCont {
         } catch (error) {
             console.error("Error deleting movie:", error);
             return res.status(500).send({ "status": "failed", "message": error.message });
+        }
+    }
+
+    //auth conts
+
+    static userSignup = async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, errors: errors.array() });
+        }
+
+        const { firstName, lastName, email, password, confirmPassword, role, country } = req.body;
+
+        const user = await userModel.findOne({ email: email, role: role });
+        if (user) {
+            return res.status(400).send({ "status": "failed", "message": `User already exists as ${role}` });
+        } else {
+            if (firstName && lastName && email && password && confirmPassword && role && country) {
+                if (password !== confirmPassword) {
+                    res.status(400).send({ "status": "failed", "message": "Passwords do not match" });
+                } else {
+                    try {
+                        const salt = await bcrypt.genSalt(10);
+                        const hashPassword = await bcrypt.hash(password, salt);
+
+                        const otp = crypto.randomInt(100000, 999999).toString(); // Generate 6-digit OTP
+                        const otpExpiry = Date.now() + 15 * 60 * 1000; // OTP valid for 15 minutes
+
+                        let image = null;
+                        if (req.file) {
+                            image = await uploadToCloudinary(req.file.buffer);
+                        }
+
+                        const newUser = new userModel({ firstName, lastName, email, password: hashPassword, role, country, image, otp, otpExpiry });
+                        await newUser.save();
+
+                        const msg = `
+                        <div style="font-family: 'Roboto', sans-serif; width: 100%;">
+        <div style="background: #5AB2FF; padding: 10px 20px; border-radius: 3px; border: none">
+            <a href="" style="font-size:1.6em; color: white; text-decoration:none; font-weight:600">MarketPlace</a>
+        </div>
+        <p>Hello <span style="color: #5AB2FF; font-size: 1.2em; text-transform: capitalize;">${newUser.firstName}</span>!</p>
+        <p>Thank you for choosing MarketPlace. Use the following OTP to complete your Sign Up procedure. This OTP is valid for 15 minutes.</p>
+        <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
+            <div style="background: #5AB2FF; color: white; width: fit-content; border-radius: 3px; padding: 5px 10px; font-size: 1.4em;">${otp}</div>
+        </div>
+      
+        <p>Regards,</p>
+        <p>MarketPlace</p>
+    </div>
+                        `;
+
+                        await sendMail(newUser.email, 'Verify your email', msg);
+                        return res.status(201).send({ "status": "success", "message": `User created successfully. Please verify your email using the OTP sent to your email ${newUser.email}.` });
+                    } catch (error) {
+                        return res.status(500).send({ "status": "failed", "message": error.message });
+                    }
+                }
+            } else {
+                res.status(400).send({ "status": "failed", "message": "All fields are required" });
+            }
         }
     }
 
@@ -594,6 +700,7 @@ class userCont {
                             password: password,
                             image: user.image,
                             movies: user.movies,
+                            orders: user.orders,
                             friends: user.friends,
                             friendReq: user.friendReq,
                             notifications: user.notifications

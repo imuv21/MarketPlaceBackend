@@ -36,6 +36,22 @@ const messageSchema = new mongoose.Schema({
     }
 });
 
+//order schema
+const orderSchema = new mongoose.Schema({
+    razorpay_order_id: {
+        type: String,
+        required: true
+    },
+    razorpay_payment_id: {
+        type: String,
+        required: true
+    },
+    razorpay_signature: {
+        type: String,
+        required: true
+    }
+});
+
 //Schema
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -92,6 +108,8 @@ const userSchema = new mongoose.Schema({
 
     messages: [messageSchema],
 
+    orders: [orderSchema],
+
     friendReq: {
         type: Array,
         default: [],
@@ -128,4 +146,5 @@ userSchema.index({ email: 1, role: 1 }, { unique: true });
 
 //Model
 const userModel = mongoose.model("user", userSchema);
+
 export default userModel
