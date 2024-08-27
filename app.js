@@ -15,7 +15,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT
 const DATABASE_URL = process.env.DATABASE_URL
-const FRONTEND_URL = process.env.FRONTEND_URL
+const BACKEND_URL = process.env.BACKEND_URL
+const NODE_ENV = process.env.NODE_ENV
+
+
 
 // Security Headers
 app.use(helmet());
@@ -59,7 +62,7 @@ app.use(express.urlencoded({ extended: true }));
 let sitemap;
 
 const generateSitemap = async () => {
-    const smStream = new SitemapStream({ hostname: `${FRONTEND_URL}` });
+    const smStream = new SitemapStream({ hostname: `${BACKEND_URL}` });
 
     // Static pages
     smStream.write({ url: '/', changefreq: 'monthly', priority: 1.0 });
@@ -90,7 +93,6 @@ const generateSitemap = async () => {
 
 app.get('/sitemap.xml', async (req, res) => {
     try {
-        // Cache the sitemap for performance
         if (!sitemap) {
             sitemap = await generateSitemap();
         }
@@ -122,5 +124,9 @@ const server = http.createServer(app);
 
 //Listening to ports
 server.listen(PORT, () => {
-    console.log(`Server listening at http://localhost:${PORT}`); //remove this for production
+    if (NODE_ENV !== 'pro') {
+        console.log(`Server listening at http://localhost:${PORT}`);
+    } else {
+        console.log('Server is running in production mode');
+    }
 });
