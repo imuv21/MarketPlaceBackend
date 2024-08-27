@@ -10,7 +10,6 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
 import { SitemapStream, streamToPromise } from 'sitemap';
-import { createGzip } from 'zlib';
 
 dotenv.config();
 const app = express();
@@ -60,7 +59,6 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/sitemap.xml', async (req, res) => {
     try {
         const smStream = new SitemapStream({ hostname: `${BACKEND_URL}` });
-        const pipeline = smStream.pipe(createGzip()); 
 
         smStream.write({ url: '/', changefreq: 'monthly', priority: 1.0 });
         smStream.write({ url: '/shoping', changefreq: 'hourly', priority: 0.9 });
@@ -83,15 +81,9 @@ app.get('/sitemap.xml', async (req, res) => {
         smStream.write({ url: '/text-to-speech', changefreq: 'yearly', priority: 0.2 });
         smStream.end();
 
-        // const sitemap = await streamToPromise(smStream);
-
+        const sitemap = await streamToPromise(smStream);
         res.header('Content-Type', 'application/xml');
-        pipeline.pipe(res).on('error', (e) => {
-            console.error(e);
-            res.status(500).end();
-        });
-
-        // res.send(sitemap.toString());
+        res.send(sitemap.toString());
 
     } catch (err) {
         console.error(err);
