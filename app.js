@@ -15,7 +15,6 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT
 const DATABASE_URL = process.env.DATABASE_URL
-const BACKEND_URL = process.env.BACKEND_URL
 const NODE_ENV = process.env.NODE_ENV
 
 
@@ -58,7 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 //Sitemap
 app.get('/sitemap.xml', async (req, res) => {
     try {
-        const smStream = new SitemapStream({ hostname: `${BACKEND_URL}` });
+        const smStream = new SitemapStream({ hostname: `https://imuv21.netlify.app` });
 
         smStream.write({ url: '/', changefreq: 'monthly', priority: 1.0 });
         smStream.write({ url: '/shoping', changefreq: 'hourly', priority: 0.9 });
