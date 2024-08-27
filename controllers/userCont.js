@@ -56,14 +56,89 @@ Paypal.configure({
     client_secret: process.env.PAYPAL_SECRET,
 });
 
-
 class userCont {
 
-    // payment conts
+    // Paypal
+
+    // static paypal = async (req, res) => {
+    //     try {
+    //         const { price, currency } = req.body;
+    //         let create_payment_json = {
+    //             "intent": "sale",
+    //             "payer": {
+    //                 "payment_method": "paypal"
+    //             },
+    //             "redirect_urls": {
+    //                 "return_url": `http://localhost:8000/successpaypal?total=${price}&currency=${currency}`,
+    //                 "cancel_url": "http://localhost:8000/failedpaypal"
+    //             },
+    //             "transactions": [{
+    //                 "item_list": {
+    //                     "items": [{
+    //                         "name": "item",
+    //                         "sku": "item",
+    //                         "price": price,
+    //                         "currency": currency,
+    //                         "quantity": 1
+    //                     }]
+    //                 },
+    //                 "amount": {
+    //                     "currency": currency,
+    //                     "total": price,
+    //                 },
+    //                 "description": "This is the payment description."
+    //             }]
+    //         };
+    //         Paypal.payment.create(create_payment_json, function (error, payment) {
+    //             if (error) {
+    //                 return res.status(500).send("Payment creation failed");
+    //             } else {
+    //                 let data = payment
+    //                 res.json(data);
+    //             }
+    //         });
+    //     } catch (error) {
+    //         return res.status(500).json({ status: "failed", message: error.message });
+    //     }
+    // }
+
+    static successPaypal = async (req, res) => {
+        try {
+            const { PayerID: payerId, paymentId, currency, total } = req.query;
+
+            if (!payerId || !paymentId || !currency || !total) {
+                console.error('Missing required parameters:', req.query);
+                return res.status(400).json({ status: "failed", message: 'Missing required parameters' });
+            }
+
+            const execute_payment_json = {
+                "payer_id": payerId,
+                "transactions": [{
+                    "amount": {
+                        "currency": currency,
+                        "total": total
+                    },
+                    "description": "This is the payment description."
+                }]
+            };
+
+            Paypal.payment.execute(paymentId, execute_payment_json, function (error, payment) {
+                if (error) {
+                    return res.redirect(`${FRONTEND_URL}payment-failed`);
+                } else {
+                    return res.redirect(`${FRONTEND_URL}payment-success`);
+                }
+            });
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: error.message });
+        }
+    }
 
     static failedPaypal = async (req, res) => {
         return res.redirect(`${FRONTEND_URL}payment-failed`);
     }
+
+    // Razorpay
 
     static getKey = async (req, res) => {
         return res.status(200).json({ key: process.env.RAZORPAY_API_KEY });
@@ -119,6 +194,8 @@ class userCont {
             return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
         }
     };
+
+    //Orders
 
     static getPaymentDetails = async (req, res) => {
         try {

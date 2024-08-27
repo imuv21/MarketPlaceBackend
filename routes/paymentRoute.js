@@ -8,7 +8,8 @@ const router = express.Router();
 router.get('/getkey', userCont.getKey);
 router.post('/payment-verification/:userId', userCont.paymentVerification);
 
-
+// app.post('/paymentpaypal', async (req, res) => { });
+router.get('/successpaypal', userCont.successPaypal);
 router.get('/failedpaypal', userCont.failedPaypal);
 
 

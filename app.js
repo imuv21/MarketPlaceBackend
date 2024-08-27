@@ -9,11 +9,13 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
+import { SitemapStream, streamToPromise } from 'sitemap';
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT
 const DATABASE_URL = process.env.DATABASE_URL
+const FRONTEND_URL = process.env.FRONTEND_URL
 
 // Security Headers
 app.use(helmet());
@@ -48,6 +50,67 @@ connectDB(DATABASE_URL);
 //JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+
+
+
+
+//Sitemap
+let sitemap;
+
+const generateSitemap = async () => {
+    const smStream = new SitemapStream({ hostname: `${FRONTEND_URL}` });
+
+    // Static pages
+    smStream.write({ url: '/', changefreq: 'monthly', priority: 1.0 });
+    smStream.write({ url: '/shoping', changefreq: 'hourly', priority: 0.9 });
+    smStream.write({ url: '/add-new-movie', changefreq: 'hourly', priority: 0.9 });
+    smStream.write({ url: '/discover', changefreq: 'hourly', priority: 0.9 });
+    smStream.write({ url: '/friend-list', changefreq: 'hourly', priority: 0.8 });
+    smStream.write({ url: '/order', changefreq: 'hourly', priority: 0.8 });
+    smStream.write({ url: '/cart', changefreq: 'monthly', priority: 0.7 });
+    smStream.write({ url: '/friend-requests', changefreq: 'hourly', priority: 0.7 });
+    smStream.write({ url: '/notifications', changefreq: 'hourly', priority: 0.7 });
+    smStream.write({ url: '/profile', changefreq: 'monthly', priority: 0.6 });
+    smStream.write({ url: '/login', changefreq: 'yearly', priority: 0.4 });
+    smStream.write({ url: '/signup', changefreq: 'yearly', priority: 0.4 });
+    smStream.write({ url: '/verify-otp', changefreq: 'yearly', priority: 0.4 });
+    smStream.write({ url: '/payment-success', changefreq: 'yearly', priority: 0.3 });
+    smStream.write({ url: '/payment-failed', changefreq: 'yearly', priority: 0.3 });
+
+    smStream.write({ url: '/play-games', changefreq: 'yearly', priority: 0.2 });
+    smStream.write({ url: '/snake', changefreq: 'yearly', priority: 0.2 });
+    smStream.write({ url: '/text-to-speech', changefreq: 'yearly', priority: 0.2 });
+
+    smStream.end();
+
+    // Convert stream to buffer and return as gzipped sitemap
+    return streamToPromise(smStream).then((data) => data.toString());
+};
+
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        // Cache the sitemap for performance
+        if (!sitemap) {
+            sitemap = await generateSitemap();
+        }
+
+        res.header('Content-Type', 'application/xml');
+        res.send(sitemap);
+    } catch (err) {
+        console.error(err);
+        res.status(500).end();
+    }
+});
+
+setInterval(async () => {
+    sitemap = await generateSitemap();
+}, 1000 * 60 * 60);
+
+
+
+
+
 
 //Loading routes
 app.use("/api/v1/user", userRoute);
