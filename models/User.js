@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 const roleOptions = ["buyer", "seller", "admin"];
 
-//notification schema
+//Notification schema
 const notificationSchema = new mongoose.Schema({
     type: {
         type: String,
@@ -14,7 +14,7 @@ const notificationSchema = new mongoose.Schema({
     }
 });
 
-//message schema
+//Message schema
 const messageSchema = new mongoose.Schema({
     sender: {
         type: mongoose.Schema.Types.ObjectId,
@@ -36,7 +36,7 @@ const messageSchema = new mongoose.Schema({
     }
 });
 
-//order schema
+//Order schema
 const orderSchema = new mongoose.Schema({
     razorpay_order_id: {
         type: String,
