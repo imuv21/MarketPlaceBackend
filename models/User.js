@@ -52,6 +52,26 @@ const orderSchema = new mongoose.Schema({
     }
 });
 
+//Movie schema
+const movieSchema = new mongoose.Schema({
+    title: {
+        type: String,
+        trim: true,
+    },
+    rating: {
+        type: Number,
+        default: 0,
+    },
+    comment: {
+        type: String,
+        trim: true,
+    },
+    poster: {
+        type: String,
+        trim: true,
+    }
+});
+
 //Schema
 const userSchema = new mongoose.Schema({
     firstName: {
@@ -119,26 +139,7 @@ const userSchema = new mongoose.Schema({
         default: [],
     },
 
-    movies: [
-        {
-            title: {
-                type: String,
-                trim: true,
-            },
-            rating: {
-                type: Number,
-                default: 0,
-            },
-            comment: {
-                type: String,
-                trim: true,
-            },
-            poster: {
-                type: String,
-                trim: true,
-            }
-        }
-    ]
+    movies: [movieSchema]
 });
 
 //Composite index on email and role

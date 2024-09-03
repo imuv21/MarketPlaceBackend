@@ -24,8 +24,8 @@ class serviceCont {
                 redirectUrl: url,
                 visitHistory: [],
             });
-          
-            return res.status(200).json({ status: "success", shortUrl: `${BACKEND_URL}/service/redirect/${shortId}` });
+
+            return res.status(200).json({ status: "success", shortUrl: `${BACKEND_URL}/service/redirect/${shortId}`, shortId: shortId, message: "Short url generated" });
         } catch (error) {
             return res.status(500).json({ status: "failed", message: error.message });
         }
@@ -36,11 +36,11 @@ class serviceCont {
             const { shortId } = req.params;
 
             if (!shortId) {
-                return res.status(400).json({ status: "failed", message: "Short id is required!"});
+                return res.status(400).json({ status: "failed", message: "Short id is required!" });
             }
 
             const entry = await urlModel.findOneAndUpdate({ shortId },
-                { $push: { visitHistory: { timestamp: Date.now() }}}
+                { $push: { visitHistory: { timestamp: Date.now() } } }
             );
 
             res.redirect(entry.redirectUrl);
@@ -50,23 +50,25 @@ class serviceCont {
     };
 
     static analytics = async (req, res) => {
-        try{
+        try {
             const { shortId } = req.params;
 
             if (!shortId) {
-                return res.status(400).json({ status: "failed", message: "Short id is required!"});
+                return res.status(400).json({ status: "failed", message: "Short id is required!" });
+            } else {
+                const result = await urlModel.findOne({ shortId });
+
+                if (!result) {
+                    return res.status(404).json({ status: "failed", message: "No record found with the provided shortId." });
+                } else {
+                    const visitHistory = result.visitHistory || [];
+                    return res.status(200).json({ status: "success", analytics: visitHistory });
+                }
             }
-
-            const result = await urlModel.findOne({ shortId });
-
-            return res.status(200).json({ status: "success", allVisits: result.visitHistory.length, 
-                analytics: result.visitHistory
-            });
-
         } catch (error) {
-            return res.status(500).json({ status: "failed", message: error.message});
+            return res.status(500).json({ status: "failed", message: error.message });
         }
-    }
+    };
 }
 
 

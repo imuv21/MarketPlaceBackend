@@ -14,11 +14,10 @@ import { SitemapStream, streamToPromise } from 'sitemap';
 
 dotenv.config();
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT
 const DATABASE_URL = process.env.DATABASE_URL
 const NODE_ENV = process.env.NODE_ENV
-
-
 
 // Security Headers
 app.use(helmet());
@@ -53,7 +52,6 @@ connectDB(DATABASE_URL);
 //JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 
 //Sitemap
 app.get('/sitemap.xml', async (req, res) => {
@@ -91,15 +89,11 @@ app.get('/sitemap.xml', async (req, res) => {
     }
 });
 
-
 //Loading routes
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/payment", paymentRoute);
 app.use("/api/v1/service", serviceRoute);
 app.use("/", authRoute);
-
-//http server
-const server = http.createServer(app);
 
 //Listening to ports
 server.listen(PORT, () => {

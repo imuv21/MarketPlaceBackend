@@ -14,7 +14,8 @@ router.get('/failedpaypal', userCont.failedPaypal);
 
 
 router.use(authedUser);
-router.post('/checkout', userCont.checkout);
+router.post('/paypal', userCont.paypal);
+router.post('/razorpay', userCont.razorpay);
 router.get('/paymentdetails/:paymentId', userCont.getPaymentDetails);
 
 export default router

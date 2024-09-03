@@ -60,47 +60,54 @@ class userCont {
 
     // Paypal
 
-    // static paypal = async (req, res) => {
-    //     try {
-    //         const { price, currency } = req.body;
-    //         let create_payment_json = {
-    //             "intent": "sale",
-    //             "payer": {
-    //                 "payment_method": "paypal"
-    //             },
-    //             "redirect_urls": {
-    //                 "return_url": `http://localhost:8000/successpaypal?total=${price}&currency=${currency}`,
-    //                 "cancel_url": "http://localhost:8000/failedpaypal"
-    //             },
-    //             "transactions": [{
-    //                 "item_list": {
-    //                     "items": [{
-    //                         "name": "item",
-    //                         "sku": "item",
-    //                         "price": price,
-    //                         "currency": currency,
-    //                         "quantity": 1
-    //                     }]
-    //                 },
-    //                 "amount": {
-    //                     "currency": currency,
-    //                     "total": price,
-    //                 },
-    //                 "description": "This is the payment description."
-    //             }]
-    //         };
-    //         Paypal.payment.create(create_payment_json, function (error, payment) {
-    //             if (error) {
-    //                 return res.status(500).send("Payment creation failed");
-    //             } else {
-    //                 let data = payment
-    //                 res.json(data);
-    //             }
-    //         });
-    //     } catch (error) {
-    //         return res.status(500).json({ status: "failed", message: error.message });
-    //     }
-    // }
+    static paypal = async (req, res) => {
+        try {
+            const { amount, currency } = req.body;
+
+            if (!amount || !currency) {
+                return res.status(400).json({ status: "failed", message: "Price or currency is missing" });
+            }
+
+            let create_payment_json = {
+                "intent": "sale",
+                "payer": {
+                    "payment_method": "paypal"
+                },
+                "redirect_urls": {
+                    "return_url": `http://localhost:8000/successpaypal?total=${amount}&currency=${currency}`,
+                    "cancel_url": "http://localhost:8000/failedpaypal"
+                },
+                "transactions": [{
+                    "item_list": {
+                        "items": [{
+                            "name": "item",
+                            "sku": "item",
+                            "price": amount,
+                            "currency": currency,
+                            "quantity": 1
+                        }]
+                    },
+                    "amount": {
+                        "currency": currency,
+                        "total": amount,
+                    },
+                    "description": "This is the payment description."
+                }]
+            };
+
+            Paypal.payment.create(create_payment_json, function (error, payment) {
+                if (error) {
+                    return res.status(500).json({ status: "failed", message: "Payment creation failed"});
+                } else {
+                    let data = payment
+                    return res.status(200).json({ status: "failed", data });
+                }
+            });
+            
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: error.message });
+        }
+    }
 
     static successPaypal = async (req, res) => {
         try {
@@ -144,7 +151,7 @@ class userCont {
         return res.status(200).json({ key: process.env.RAZORPAY_API_KEY });
     }
 
-    static checkout = async (req, res) => {
+    static razorpay = async (req, res) => {
         try {
             const { amount, currency } = req.body;
             const userId = req.user._id;
@@ -221,7 +228,6 @@ class userCont {
             return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
         }
     };
-
 
     //social conts
 
