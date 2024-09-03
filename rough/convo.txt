@@ -1,0 +1,6 @@
+otp nhi aa rha
+ek min sir ne syd password reset kiya h tumlog k a Iminulinkit@21   we can send only one image ???
+
+so we will show categories in these four variables selectedSupOption, selectedSubOption, selectedMiniSubOption and selectedMicroSubOption and marketingValue and images (which is array(in an object we are storing name, size, url ) and images content are base64-encoded content  which ) you can store it on sql or any other cloud storage   can't just send only one image  
+
+see the format , please change accordiongly thanks .

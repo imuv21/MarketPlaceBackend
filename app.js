@@ -5,19 +5,13 @@ import userRoute from './routes/userRoute.js';
 import authRoute from './routes/authRoute.js';
 import serviceRoute from './routes/serviceRoute.js';
 import paymentRoute from './routes/paymentRoute.js';
-import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import http from 'http';
 import { SitemapStream, streamToPromise } from 'sitemap';
+export const app = express();
 
-dotenv.config();
-const app = express();
-const server = http.createServer(app);
-const PORT = process.env.PORT
 const DATABASE_URL = process.env.DATABASE_URL
-const NODE_ENV = process.env.NODE_ENV
 
 // Security Headers
 app.use(helmet());
@@ -95,11 +89,3 @@ app.use("/api/v1/payment", paymentRoute);
 app.use("/api/v1/service", serviceRoute);
 app.use("/", authRoute);
 
-//Listening to ports
-server.listen(PORT, () => {
-    if (NODE_ENV !== 'pro') {
-        console.log(`Server listening at http://localhost:${PORT}`);
-    } else {
-        console.log('Server is running in production mode');
-    }
-});

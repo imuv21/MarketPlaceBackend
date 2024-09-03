@@ -1,9 +1,18 @@
 import urlModel from '../models/Url.js';
+import zlib from 'zlib';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { nanoid } from 'nanoid';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const BACKEND_URL = process.env.BACKEND_URL;
 
+
 class serviceCont {
+
+    //Url shortner
 
     static shortUrlGenerator = async (req, res) => {
         try {
@@ -68,6 +77,27 @@ class serviceCont {
         } catch (error) {
             return res.status(500).json({ status: "failed", message: error.message });
         }
+    };
+
+    //Streams and using zlib
+
+    static streams = async (req, res) => {
+        const filePath = path.join(__dirname, '../rough/convo.txt');
+        const zfilePath = path.join(__dirname, '../rough/convo.zip');
+        const gzipStream = fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(fs.createWriteStream(zfilePath));
+
+        gzipStream.on('finish', () => {
+            const stream = fs.createReadStream(filePath, 'utf8');
+            stream.on('data', (chunk) => res.write(chunk));
+            stream.on('end', () => res.end());
+            stream.on('error', (err) => {
+                res.status(500).send('Internal Server Error');
+            });
+        });
+
+        gzipStream.on('error', (err) => {
+            res.status(500).send('Internal Server Error');
+        });
     };
 }
 
