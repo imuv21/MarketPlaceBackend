@@ -10,7 +10,7 @@ dotenv.config();
 import { v2 as cloudinary } from 'cloudinary';
 import { validationResult } from "express-validator";
 import sendMail from '../helpers/mailer.js';
-import userModel from "../models/User.js";
+import { userModel, orderModel } from "../models/User.js";
 
 //Cloudinary
 cloudinary.config({
@@ -42,6 +42,7 @@ const uploadPostersToCloudinary = (buffer) => {
     });
 };
 const FRONTEND_URL = process.env.FRONTEND_URL;
+const BACKEND_URL = process.env.BACKEND_URL;
 
 //Razorpay
 const instance = new Razorpay({
@@ -63,24 +64,26 @@ class userCont {
     static paypal = async (req, res) => {
         try {
             const { amount, currency } = req.body;
+            const userId = req.user._id;
 
             if (!amount || !currency) {
-                return res.status(400).json({ status: "failed", message: "Price or currency is missing" });
+                return res.status(400).json({ status: "failed", message: "Amount or currency is missing" });
             }
 
+            const user = await userModel.findById(userId);
             let create_payment_json = {
                 "intent": "sale",
                 "payer": {
                     "payment_method": "paypal"
                 },
                 "redirect_urls": {
-                    "return_url": `http://localhost:8000/successpaypal?total=${amount}&currency=${currency}`,
-                    "cancel_url": "http://localhost:8000/failedpaypal"
+                    "return_url": `${BACKEND_URL}/payment/successpaypal?total=${amount}&currency=${currency}`,
+                    "cancel_url": `${BACKEND_URL}/payment/failedpaypal`
                 },
                 "transactions": [{
                     "item_list": {
                         "items": [{
-                            "name": "item",
+                            "name": `${user.firstName} ${user.lastName}`,
                             "sku": "item",
                             "price": amount,
                             "currency": currency,
@@ -95,15 +98,24 @@ class userCont {
                 }]
             };
 
-            Paypal.payment.create(create_payment_json, function (error, payment) {
+            Paypal.payment.create(create_payment_json, async (error, payment) => {
                 if (error) {
-                    return res.status(500).json({ status: "failed", message: "Payment creation failed"});
+                    return res.status(500).json({ status: "failed", message: "Payment creation failed" });
                 } else {
-                    let data = payment
-                    return res.status(200).json({ status: "failed", data });
+                    const newOrder = {
+                        userId: userId,
+                        paypal_payment_id: payment.id,
+                        amount: amount,
+                        currency: currency,
+                        status: "pending"
+                    };
+
+                    await orderModel.create(newOrder);
+                    let data = payment;
+                    return res.status(200).json({ status: "success", data });
                 }
             });
-            
+
         } catch (error) {
             return res.status(500).json({ status: "failed", message: error.message });
         }
@@ -114,7 +126,6 @@ class userCont {
             const { PayerID: payerId, paymentId, currency, total } = req.query;
 
             if (!payerId || !paymentId || !currency || !total) {
-                console.error('Missing required parameters:', req.query);
                 return res.status(400).json({ status: "failed", message: 'Missing required parameters' });
             }
 
@@ -129,10 +140,11 @@ class userCont {
                 }]
             };
 
-            Paypal.payment.execute(paymentId, execute_payment_json, function (error, payment) {
+            Paypal.payment.execute(paymentId, execute_payment_json, async (error, payment) => {
                 if (error) {
                     return res.redirect(`${FRONTEND_URL}payment-failed`);
                 } else {
+                    await orderModel.updateOne({ paypal_payment_id: paymentId }, { $set: { status: "completed", paypal_payer_id: payerId } });
                     return res.redirect(`${FRONTEND_URL}payment-success`);
                 }
             });
@@ -248,6 +260,17 @@ class userCont {
             if (!senderUpdate) {
                 return res.status(404).send({ "status": "failed", "message": "Sender not found." });
             }
+
+            // Emit the new message via Socket.IO to the room (senderId + receiverId)
+            const io = req.app.get('socketio');  
+            const roomId = [senderId, receiverId].sort().join('_');
+
+            io.to(roomId).emit('newMessage', {
+                sender: { _id: senderId },
+                receiver: { _id: receiverId },
+                content,
+                timestamp: message.timestamp
+            });
 
             return res.status(200).send({ "status": "success", "message": "Message sent" });
         } catch (error) {
@@ -641,13 +664,13 @@ class userCont {
             return res.status(400).json({ success: false, errors: errors.array() });
         }
 
-        const { firstName, lastName, email, password, confirmPassword, role, country } = req.body;
+        const { firstName, lastName, email, phone, countryCode, password, confirmPassword, role, country } = req.body;
 
         const user = await userModel.findOne({ email: email, role: role });
         if (user) {
             return res.status(400).send({ "status": "failed", "message": `User already exists as ${role}` });
         } else {
-            if (firstName && lastName && email && password && confirmPassword && role && country) {
+            if (firstName && lastName && email && phone && countryCode && password && confirmPassword && role && country) {
                 if (password !== confirmPassword) {
                     res.status(400).send({ "status": "failed", "message": "Passwords do not match" });
                 } else {
@@ -663,7 +686,7 @@ class userCont {
                             image = await uploadToCloudinary(req.file.buffer);
                         }
 
-                        const newUser = new userModel({ firstName, lastName, email, password: hashPassword, role, country, image, otp, otpExpiry });
+                        const newUser = new userModel({ firstName, lastName, email, phone, countryCode, password: hashPassword, role, country, image, otp, otpExpiry });
                         await newUser.save();
 
                         const msg = `
@@ -777,6 +800,8 @@ class userCont {
                             firstName: user.firstName,
                             lastName: user.lastName,
                             email: user.email,
+                            phone: user.phone,
+                            countryCode: user.countryCode,
                             role: user.role,
                             country: user.country,
                             isVerified: user.isVerified,

@@ -10,6 +10,11 @@ const signupValidator = [
             gmail_remove_dots: true
         })
         .withMessage("Invalid email address"),
+    check("phone").isString()
+        .not().isEmpty()
+        .withMessage("Phone number is required"),
+    check("countryCode").not().isEmpty()
+        .withMessage("Country code is required"),
     check("password").isStrongPassword({
         minLength: 8,
         minLowercase: 1,

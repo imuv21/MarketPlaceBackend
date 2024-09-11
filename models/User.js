@@ -36,19 +36,70 @@ const messageSchema = new mongoose.Schema({
     }
 });
 
+//Product schema
+const productSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        trim: true,
+    },
+    amount: {
+        type: Number,
+    },
+    disAmount: {
+        type: Number,
+        default: 0,
+    },
+    img: {
+        type: String,
+        trim: true,
+    }
+});
+
 //Order schema
 const orderSchema = new mongoose.Schema({
-    razorpay_order_id: {
+
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'user',
+        required: true
+    },
+    amount: {
+        type: Number,
+        required: true
+    },
+    currency: {
         type: String,
         required: true
+    },
+
+    // Razorpay-specific fields
+    razorpay_order_id: {
+        type: String
     },
     razorpay_payment_id: {
-        type: String,
-        required: true
+        type: String
     },
     razorpay_signature: {
+        type: String
+    },
+
+    // PayPal-specific fields
+    paypal_payment_id: {
+        type: String
+    },
+    paypal_payer_id: {
+        type: String
+    },
+
+    // General order status
+    status: {
         type: String,
-        required: true
+        enum: ['pending', 'completed', 'failed'],
+        default: 'pending'
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
     }
 });
 
@@ -88,6 +139,15 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
+    },
+    phone: {
+        type: String,
+        required: true,
+        trim: true, 
+    },
+    countryCode: {
+        type: String,
+        required: true,
     },
     password: {
         type: String,
@@ -139,7 +199,8 @@ const userSchema = new mongoose.Schema({
         default: [],
     },
 
-    movies: [movieSchema]
+    movies: [movieSchema],
+    products: [productSchema]
 });
 
 //Composite index on email and role
@@ -147,5 +208,6 @@ userSchema.index({ email: 1, role: 1 }, { unique: true });
 
 //Model
 const userModel = mongoose.model("user", userSchema);
+const orderModel = mongoose.model('order', orderSchema);
 
-export default userModel
+export { userModel, orderModel };

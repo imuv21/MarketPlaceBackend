@@ -4,15 +4,15 @@ import userCont from '../controllers/userCont.js';
 const router = express.Router();
 
 
-//payment routes
+//Razorpay
 router.get('/getkey', userCont.getKey);
 router.post('/payment-verification/:userId', userCont.paymentVerification);
 
-// app.post('/paymentpaypal', async (req, res) => { });
+//Paypal
 router.get('/successpaypal', userCont.successPaypal);
 router.get('/failedpaypal', userCont.failedPaypal);
 
-
+//Payment Routes
 router.use(authedUser);
 router.post('/paypal', userCont.paypal);
 router.post('/razorpay', userCont.razorpay);
