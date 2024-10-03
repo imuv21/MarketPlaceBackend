@@ -677,13 +677,17 @@ class userCont {
             if (allPublicLists.length === 0) {
                 return res.status(404).json({ status: "failed", message: "No list found" });
             }
-            const filteredLists = allPublicLists.map(list => ({
-                listName: list.listName,
-                privacy: list.privacy,
-                description: list.description,
-                numberOfProjects: list.numberOfProjects,
-                _id: list._id
-            }));
+            const filteredLists = allPublicLists.map(list => {
+                const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
+                return {
+                    listName: list.listName,
+                    privacy: list.privacy,
+                    description: list.description,
+                    numberOfProjects: list.numberOfProjects,
+                    listPoster: listPoster,
+                    _id: list._id
+                };
+            });
             return res.status(200).json({ status: "success", lists: filteredLists });
 
         } catch (error) {
