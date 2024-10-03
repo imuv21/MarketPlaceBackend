@@ -262,7 +262,7 @@ class userCont {
             }
 
             // Emit the new message via Socket.IO to the room (senderId + receiverId)
-            const io = req.app.get('socketio');  
+            const io = req.app.get('socketio');
             const roomId = [senderId, receiverId].sort().join('_');
 
             io.to(roomId).emit('newMessage', {
@@ -587,54 +587,210 @@ class userCont {
         }
     }
 
-    //movie conts
+    //lists & movies conts
 
-    static getMovie = async (req, res) => {
-        const user = await userModel.findById(req.user._id);
-        if (!user) {
-            return res.status(400).send({ "status": "failed", "message": "User not found" });
-        } else {
-            return res.status(200).send({ "status": "success", "data": user.movies });
-        }
-    }
+    static createList = async (req, res) => {
+        const { listName, privacy, description } = req.body;
 
-    static addMovie = async (req, res) => {
-        const { title, rating, comment } = req.body;
-
-        if (!title || !rating) {
-            return res.status(400).send({ "status": "failed", "message": "Title, rating, and comment are required" });
-        } else {
-            const user = await userModel.findById(req.user._id);
-            if (!user) {
-                return res.status(400).send({ "status": "failed", "message": "User not found" });
-            } else {
-                let poster = null;
-                if (req.file) {
-                    poster = await uploadPostersToCloudinary(req.file.buffer);
-                }
-                user.movies.push({ title, rating, comment, poster });
-                await user.save();
-                return res.status(201).send({ "status": "success", "message": "Movie added successfully" });
-            }
-        }
-    }
-
-    static deleteMovie = async (req, res) => {
-        const { movieId } = req.body;
-        if (!movieId) {
-            return res.status(400).send({ "status": "failed", "message": "Movie ID is required" });
+        if (!listName || !privacy || !description) {
+            return res.status(400).json({ status: "failed", message: "List name, privacy, and description are required" });
         }
         try {
             const user = await userModel.findById(req.user._id);
             if (!user) {
-                return res.status(400).send({ "status": "failed", "message": "User not found" });
+                return res.status(400).json({ status: "failed", message: "User not found" });
             }
-            const movieIndex = user.movies.findIndex(movie => movie._id.toString() === movieId);
-            if (movieIndex === -1) {
-                return res.status(400).send({ "status": "failed", "message": "Movie not found" });
-            }
-            const movie = user.movies[movieIndex];
+            const newList = { listName, privacy, description, numberOfProjects: 0, movies: [] };
+            user.lists.push(newList);
+            await user.save();
+            return res.status(201).json({ status: "success", message: "List created successfully" });
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
 
+    static editList = async (req, res) => {
+        const { listId } = req.params; 
+        const { listName, privacy, description } = req.body;
+
+        if (!listName || !privacy || !description) {
+            return res.status(400).json({ status: "failed", message: "listName, privacy and description are required" });
+        }
+
+        try {
+            const user = await userModel.findById(req.user._id);
+            if (!user) {
+                return res.status(400).json({ status: "failed", message: "User not found" });
+            }
+            if (!listId) {
+                return res.status(400).json({ status: "failed", message: "List id is required!" });
+            }
+            const list = user.lists.id(listId);
+            if (!list) {
+                return res.status(404).json({ status: "failed", message: "List not found" });
+            }
+            if (listName) list.listName = listName;
+            if (privacy) list.privacy = privacy;
+            if (description) list.description = description;
+            await user.save();
+            return res.status(200).json({ status: "success", message: "List updated successfully" });
+
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
+
+    static getLists = async (req, res) => {
+        const user = await userModel.findById(req.user._id);
+        if (!user) {
+            return res.status(400).json({ status: "failed", message: "User not found" });
+        }
+        try {
+            const lists = user.lists;
+            if (!lists) {
+                return res.status(404).json({ status: "failed", message: "Lists not found" });
+            } else {
+                const filteredLists = lists.map(list => {
+                    const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
+                    return {
+                        listName: list.listName,
+                        privacy: list.privacy,
+                        description: list.description,
+                        numberOfProjects: list.numberOfProjects,
+                        listPoster: listPoster,
+                        _id: list._id
+                    };
+                });
+                return res.status(200).json({ status: "success", lists: filteredLists });
+            }
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
+
+    static getAllLists = async (req, res) => {
+        try {
+            const users = await userModel.find({}, 'lists');
+            const allPublicLists = users.flatMap(user =>
+                user.lists.filter(list => list.privacy === 'public')
+            );
+            if (allPublicLists.length === 0) {
+                return res.status(404).json({ status: "failed", message: "No list found" });
+            }
+            const filteredLists = allPublicLists.map(list => ({
+                listName: list.listName,
+                privacy: list.privacy,
+                description: list.description,
+                numberOfProjects: list.numberOfProjects,
+                _id: list._id
+            }));
+            return res.status(200).json({ status: "success", lists: filteredLists });
+
+        } catch (error) {
+            console.error("Error retrieving all lists:", error);
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
+
+    static getAllMovies = async (req, res) => {
+        const { listId } = req.params;
+        const users = await userModel.find({}, 'lists');
+        const allPublicLists = users.flatMap(user =>
+            user.lists.filter(list => list.privacy === 'public')
+        );
+        if (allPublicLists.length === 0) {
+            return res.status(404).json({ status: "failed", message: "No list found" });
+        }
+        try {
+            if (!listId) {
+                return res.status(400).json({ status: "failed", message: "List id is required!" });
+            }
+            const list = allPublicLists.find(list => list._id.toString() === listId);
+            if (!list || (list.movies && list.movies.length === 0)) {
+                return res.status(404).json({ status: "failed", message: "Movies not found" });
+            } else {
+                return res.status(200).json({ status: "success", movies: list.movies });
+            }
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
+
+    static getMovies = async (req, res) => {
+        const { listId } = req.params;
+        const user = await userModel.findById(req.user._id);
+        if (!user) {
+            return res.status(400).json({ status: "failed", message: "User not found" });
+        }
+        try {
+            if (!listId) {
+                return res.status(400).json({ status: "failed", message: "List id is required!" });
+            }
+            const list = user.lists.id(listId);
+            if (!list || (list.movies && list.movies.length === 0)) {
+                return res.status(404).json({ status: "failed", message: "Movies not found" });
+            } else {
+                return res.status(200).json({ status: "success", movies: list.movies });
+            }
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    }
+
+    static addMovie = async (req, res) => {
+        const { listId } = req.params;
+        const { title, rating, comment } = req.body;
+
+        if (!title || !rating) {
+            return res.status(400).json({ status: "failed", message: "Title and rating are required" });
+        }
+        try {
+            const user = await userModel.findById(req.user._id);
+            if (!user) {
+                return res.status(400).json({ status: "failed", message: "User not found" });
+            }
+            if (!listId) {
+                return res.status(400).json({ status: "failed", message: "List id is required!" });
+            }
+            const list = user.lists.id(listId);
+            if (!list) {
+                return res.status(404).json({ status: "failed", message: "List not found" });
+            }
+            let poster = null;
+            if (req.file) {
+                poster = await uploadPostersToCloudinary(req.file.buffer);
+            }
+            const movieIndex = list.movies.length + 1;
+
+            list.movies.push({ title, rating, comment, poster, index: movieIndex });
+            list.numberOfProjects = list.movies.length;
+            await user.save();
+            return res.status(201).json({ status: "success", message: "Movie added successfully" });
+
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: error.message });
+        }
+    }
+
+    static deleteMovie = async (req, res) => {
+        const { listId, movieId } = req.body;
+        if (!listId || !movieId) {
+            return res.status(400).json({ status: "failed", message: "List id and movie id are required" });
+        }
+        try {
+            const user = await userModel.findById(req.user._id);
+            if (!user) {
+                return res.status(400).json({ status: "failed", message: "User not found" });
+            }
+            const list = user.lists.id(listId);
+            if (!list) {
+                return res.status(404).json({ status: "failed", message: "List not found" });
+            }
+            const movieIndex = list.movies.findIndex(movie => movie._id.toString() === movieId);
+            if (movieIndex === -1) {
+                return res.status(404).json({ status: "failed", message: "Movie not found in the list" });
+            }
+            const movie = list.movies[movieIndex];
             if (movie.poster) {
                 const posterId = movie.poster.split('/').pop().split('.')[0];
                 await cloudinary.uploader.destroy(`MarketPlace/Mcu/${posterId}`, (error, result) => {
@@ -645,14 +801,13 @@ class userCont {
                     }
                 });
             }
-
-            user.movies.splice(movieIndex, 1);
+            list.movies.splice(movieIndex, 1);
+            list.numberOfProjects = list.movies.length;
             await user.save();
-            return res.status(200).send({ "status": "success", "message": "Movie deleted successfully" });
+            return res.status(200).json({ status: "success", message: "Movie deleted successfully" });
 
         } catch (error) {
-            console.error("Error deleting movie:", error);
-            return res.status(500).send({ "status": "failed", "message": error.message });
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
         }
     }
 
@@ -689,8 +844,7 @@ class userCont {
                         const newUser = new userModel({ firstName, lastName, email, phone, countryCode, password: hashPassword, role, country, image, otp, otpExpiry });
                         await newUser.save();
 
-                        const msg = `
-                        <div style="font-family: 'Roboto', sans-serif; width: 100%;">
+                        const msg = `<div style="font-family: 'Roboto', sans-serif; width: 100%;">
         <div style="background: #5AB2FF; padding: 10px 20px; border-radius: 3px; border: none">
             <a href="" style="font-size:1.6em; color: white; text-decoration:none; font-weight:600">MarketPlace</a>
         </div>
@@ -702,8 +856,7 @@ class userCont {
       
         <p>Regards,</p>
         <p>MarketPlace</p>
-    </div>
-                        `;
+    </div>`;
 
                         await sendMail(newUser.email, 'Verify your email', msg);
                         return res.status(201).send({ "status": "success", "message": `User created successfully. Please verify your email using the OTP sent to your email ${newUser.email}.` });

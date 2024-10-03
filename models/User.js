@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 const roleOptions = ["buyer", "seller", "admin"];
+const listPrivacy = ["private", "public"];
 
 //Notification schema
 const notificationSchema = new mongoose.Schema({
@@ -107,10 +108,12 @@ const orderSchema = new mongoose.Schema({
 const movieSchema = new mongoose.Schema({
     title: {
         type: String,
+        required: true,
         trim: true,
     },
     rating: {
         type: Number,
+        required: true,
         default: 0,
     },
     comment: {
@@ -120,10 +123,43 @@ const movieSchema = new mongoose.Schema({
     poster: {
         type: String,
         trim: true,
+    },
+    index: {
+        type: Number,
+        trim: true,
     }
 });
 
-//Schema
+//List schema
+const listSchema = new mongoose.Schema({
+    listName: {
+        type: String,
+        required: true, 
+        trim: true      
+    },
+    privacy: {
+        type: String,
+        required: true,   
+        enum: listPrivacy,
+        default: "public",    
+    },
+    description: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    numberOfProjects: {
+        type: Number,
+        min: 0          
+    },
+    listPoster: {
+        type: String,
+        trim: true
+    },
+    movies: [movieSchema]
+});
+
+//User schema
 const userSchema = new mongoose.Schema({
     firstName: {
         type: String,
@@ -143,7 +179,7 @@ const userSchema = new mongoose.Schema({
     phone: {
         type: String,
         required: true,
-        trim: true, 
+        trim: true,
     },
     countryCode: {
         type: String,
@@ -198,8 +234,7 @@ const userSchema = new mongoose.Schema({
         type: Array,
         default: [],
     },
-
-    movies: [movieSchema],
+    lists: [listSchema],
     products: [productSchema]
 });
 
