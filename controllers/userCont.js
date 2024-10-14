@@ -697,7 +697,8 @@ class userCont {
                 return res.status(404).json({ status: "failed", message: "Lists not found" });
             } else {
                 const filteredLists = lists.map(list => {
-                    const listPoster = list.movies.length > 0 ? (list.movies.find(movie => movie.index === 1)?.poster || null) : null;
+
+                    const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
 
                     return {
                         listName: list.listName,
@@ -726,6 +727,7 @@ class userCont {
             }
             const filteredLists = allPublicLists.map(list => {
                 const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
+                
                 return {
                     listName: list.listName,
                     privacy: list.privacy,
