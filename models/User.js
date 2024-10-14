@@ -123,10 +123,6 @@ const movieSchema = new mongoose.Schema({
     poster: {
         type: String,
         trim: true,
-    },
-    index: {
-        type: Number,
-        trim: true,
     }
 });
 

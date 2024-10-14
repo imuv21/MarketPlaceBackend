@@ -21,7 +21,7 @@ cloudinary.config({
 
 const uploadToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream({ folder: 'avatars' }, (error, result) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'MarketPlace/Profiles' }, (error, result) => {
             if (error) {
                 return reject(error);
             }
@@ -30,9 +30,10 @@ const uploadToCloudinary = (buffer) => {
         stream.end(buffer);
     });
 };
+
 const uploadPostersToCloudinary = (buffer) => {
     return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream({ folder: 'MarketPlace/Mcu' }, (error, result) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'MarketPlace/Movies' }, (error, result) => {
             if (error) {
                 return reject(error);
             }
@@ -41,6 +42,24 @@ const uploadPostersToCloudinary = (buffer) => {
         stream.end(buffer);
     });
 };
+
+const getPublicIdFromUrl = (url) => {
+    const parts = url.split('/');
+    const marketPlaceIndex = parts.findIndex((part) => part === 'MarketPlace');
+    const publicIdPath = parts.slice(marketPlaceIndex).join('/').split('.')[0];
+
+    return publicIdPath;
+};
+
+const deletePosterFromCloudinary = async (posterUrl) => {
+    try {
+        const publicId = getPublicIdFromUrl(posterUrl);
+        await cloudinary.uploader.destroy(publicId);
+    } catch (error) {
+        console.error("Failed to delete poster from Cloudinary: ", error);
+    }
+};
+
 const FRONTEND_URL = process.env.FRONTEND_URL;
 const BACKEND_URL = process.env.BACKEND_URL;
 
@@ -609,8 +628,35 @@ class userCont {
         }
     }
 
+    static deleteList = async (req, res) => {
+        const { listId } = req.params;
+        if (!listId) {
+            return res.status(400).json({ status: "failed", message: "List id is required" });
+        }
+        try {
+            const user = await userModel.findById(req.user._id);
+            if (!user) {
+                return res.status(404).json({ status: "failed", message: "User not found" });
+            }
+            const list = user.lists.id(listId);
+            if (!list) {
+                return res.status(404).json({ status: "failed", message: "List not found" });
+            }
+            for (const movie of list.movies) {
+                if (movie.poster) {
+                    await deletePosterFromCloudinary(movie.poster);
+                }
+            }
+            user.lists.pull(listId);
+            await user.save();
+            return res.status(200).json({ status: "success", message: "List and all associated movies deleted successfully" });
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
+        }
+    };
+
     static editList = async (req, res) => {
-        const { listId } = req.params; 
+        const { listId } = req.params;
         const { listName, privacy, description } = req.body;
 
         if (!listName || !privacy || !description) {
@@ -651,7 +697,8 @@ class userCont {
                 return res.status(404).json({ status: "failed", message: "Lists not found" });
             } else {
                 const filteredLists = lists.map(list => {
-                    const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
+                    const listPoster = list.movies.length > 0 ? (list.movies.find(movie => movie.index === 1)?.poster || null) : null;
+
                     return {
                         listName: list.listName,
                         privacy: list.privacy,
@@ -764,15 +811,69 @@ class userCont {
             if (req.file) {
                 poster = await uploadPostersToCloudinary(req.file.buffer);
             }
-            const movieIndex = list.movies.length + 1;
 
-            list.movies.push({ title, rating, comment, poster, index: movieIndex });
+            list.movies.push({ title, rating, comment, poster });
             list.numberOfProjects = list.movies.length;
             await user.save();
             return res.status(201).json({ status: "success", message: "Movie added successfully" });
 
         } catch (error) {
             return res.status(500).json({ status: "failed", message: error.message });
+        }
+    }
+
+    static editMovie = async (req, res) => {
+        const { listId, movieId } = req.params;
+        const { title, rating, comment } = req.body;
+
+        try {
+            const user = await userModel.findById(req.user._id);
+            if (!user) {
+                return res.status(400).json({ status: "failed", message: "User not found" });
+            }
+            if (!listId || !movieId) {
+                return res.status(400).json({ status: "failed", message: "List id and movie id are required" });
+            }
+            const list = user.lists.id(listId);
+            if (!list) {
+                return res.status(404).json({ status: "failed", message: "List not found" });
+            }
+
+            const movieIndex = list.movies.findIndex(movie => movie._id.toString() === movieId);
+            if (movieIndex === -1) {
+                return res.status(404).json({ status: "failed", message: "Movie not found in the list" });
+            }
+
+            const movie = list.movies[movieIndex];
+            let newMovieUrl = null;
+            let oldMoviePublicId = null;
+
+            if (req.file) {
+                newMovieUrl = await uploadPostersToCloudinary(req.file.buffer);
+                if (movie.poster) {
+                    oldMoviePublicId = movie.poster.split('/').pop().split('.')[0];
+                }
+            }
+            if (title) movie.title = title;
+            if (rating) movie.rating = rating;
+            if (comment) movie.comment = comment;
+
+            if (newMovieUrl) {
+                movie.poster = newMovieUrl;
+            }
+            await user.save();
+            if (oldMoviePublicId) {
+                await cloudinary.uploader.destroy(`MarketPlace/Movies/${oldMoviePublicId}`, (error, result) => {
+                    if (error) {
+                        console.error('Error deleting old poster from Cloudinary:', error);
+                    } else {
+                        console.log('Old poster deleted from Cloudinary:', result);
+                    }
+                });
+            }
+            return res.status(200).json({ status: "success", message: "Movie updated successfully" });
+        } catch (error) {
+            return res.status(500).json({ status: "failed", message: "Server error. Please try again later." });
         }
     }
 
@@ -797,9 +898,9 @@ class userCont {
             const movie = list.movies[movieIndex];
             if (movie.poster) {
                 const posterId = movie.poster.split('/').pop().split('.')[0];
-                await cloudinary.uploader.destroy(`MarketPlace/Mcu/${posterId}`, (error, result) => {
+                await cloudinary.uploader.destroy(`MarketPlace/Movies/${posterId}`, (error, result) => {
                     if (error) {
-                        console.log("Error deleting image from Cloudinary:", error);
+                        console.error("Error deleting image from Cloudinary:", error);
                     } else {
                         console.log("Image deleted from Cloudinary:", result);
                     }
@@ -860,7 +961,7 @@ class userCont {
       
         <p>Regards,</p>
         <p>MarketPlace</p>
-    </div>`;
+                                   </div>`;
 
                         await sendMail(newUser.email, 'Verify your email', msg);
                         return res.status(201).send({ "status": "success", "message": `User created successfully. Please verify your email using the OTP sent to your email ${newUser.email}.` });
@@ -923,9 +1024,9 @@ class userCont {
 
             if (user.image) {
                 const imageId = user.image.split('/').pop().split('.')[0];
-                await cloudinary.uploader.destroy(`avatars/${imageId}`, (error, result) => {
+                await cloudinary.uploader.destroy(`MarketPlace/Profiles/${imageId}`, (error, result) => {
                     if (error) {
-                        console.log("Error deleting image from Cloudinary:", error);
+                        console.error("Error deleting image from Cloudinary:", error);
                     } else {
                         console.log("Image deleted from Cloudinary:", result);
                     }
@@ -1017,10 +1118,9 @@ class userCont {
             }
 
             const updatedUser = await userModel.findByIdAndUpdate(req.user._id, { $set: updateData }, { new: true });
-
             if (updatedUser) {
                 if (oldImagePublicId) {
-                    await cloudinary.uploader.destroy(`avatars/${oldImagePublicId}`, (error, result) => {
+                    await cloudinary.uploader.destroy(`MarketPlace/Profiles/${oldImagePublicId}`, (error, result) => {
                         if (error) {
                             console.error('Error deleting old image from Cloudinary:', error);
                         } else {
@@ -1032,6 +1132,8 @@ class userCont {
             } else {
                 res.status(404).send({ "status": "failed", "message": "User not found" });
             }
+
+
         } catch (error) {
             return res.status(500).send({ "status": "failed", "message": error.message });
         }

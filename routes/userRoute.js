@@ -15,9 +15,9 @@ router.delete('/delete-user', userCont.deleteUser);
 router.post('/forgotpassword', forgotPasswordValidator, userCont.forgotPassword);
 router.post('/reset-password/:id/:token', userCont.resetPassword);
 router.post('/verify-otp', userCont.verifyOtp);
-
 router.get('/get-all-lists', userCont.getAllLists);
 router.get('/get-all-movies/:listId', userCont.getAllMovies);
+
 
 // Private routes
 router.use(authedUser);
@@ -27,9 +27,12 @@ router.get('/get-movies/:listId', userCont.getMovies);
 router.get('/get-lists', userCont.getLists);
 router.post('/create-list', userCont.createList);
 router.put('/edit-list/:listId', userCont.editList);
+router.put('/edit-movie/:listId/:movieId', upload.single('poster'), userCont.editMovie);
 router.post('/lists/:listId/add-movie', upload.single('poster'), userCont.addMovie);
 router.delete('/delete-movie', userCont.deleteMovie);
+router.delete('/delete-list/:listId', userCont.deleteList);
 router.put('/update-profile', upload.single('image'), userCont.userProfileUpdate);
+
 
 //social
 router.get('/all-users', userCont.seeAllUsers);
