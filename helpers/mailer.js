@@ -15,13 +15,13 @@ const sendMail = async (email, subject, content) => {
     });
 
     try {
+
         var mailOptions = {
             from: process.env.SMTP_MAIL,
             to: email,
             subject: subject,
             html: content
         };
-
         transporter.sendMail(mailOptions, (error, info) => {
             if (error) {
                 console.log(error);
@@ -33,7 +33,6 @@ const sendMail = async (email, subject, content) => {
                 console.log('Email sent, but message ID not available.');
             }
         });
-
     } catch (error) {
         console.log(error);
     }

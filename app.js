@@ -2,7 +2,6 @@
 import cors from 'cors';
 import connectDB from './config/connectDB.js';
 import userRoute from './routes/userRoute.js';
-import authRoute from './routes/authRoute.js';
 import serviceRoute from './routes/serviceRoute.js';
 import paymentRoute from './routes/paymentRoute.js';
 import express from 'express';
@@ -87,5 +86,4 @@ app.get('/sitemap.xml', async (req, res) => {
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/payment", paymentRoute);
 app.use("/api/v1/service", serviceRoute);
-app.use("/", authRoute);
 
