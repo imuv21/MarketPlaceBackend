@@ -1008,10 +1008,13 @@ class userCont {
                 return res.status(400).send({ "status": "failed", "message": "OTP expired" });
             }
 
-            user.otp = null;
-            user.otpExpiry = null;
-            user.isVerified = 1;
-            await user.save();
+            await userModel.updateOne(
+                { email },
+                {
+                    $unset: { otp: "", otpExpiry: "" },
+                    $set: { isVerified: 1 } 
+                }
+            );
 
             return res.status(200).send({ "status": "success", "message": "Email verified successfully. Please login now." });
         } catch (error) {
