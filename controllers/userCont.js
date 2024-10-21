@@ -727,7 +727,7 @@ class userCont {
             }
             const filteredLists = allPublicLists.map(list => {
                 const listPoster = list.movies.length > 0 && list.movies[0].poster ? list.movies[0].poster : null;
-                
+
                 return {
                     listName: list.listName,
                     privacy: list.privacy,
@@ -941,7 +941,7 @@ class userCont {
                         const hashPassword = await bcrypt.hash(password, salt);
 
                         const otp = crypto.randomInt(100000, 999999).toString(); // Generate 6-digit OTP
-                        const otpExpiry = Date.now() + 15 * 60 * 1000; // OTP valid for 15 minutes
+                        const otpExpiry = Date.now() + 2 * 60 * 1000; // OTP valid for 5 minutes
 
                         let image = null;
                         if (req.file) {
@@ -951,12 +951,23 @@ class userCont {
                         const newUser = new userModel({ firstName, lastName, email, phone, countryCode, password: hashPassword, role, country, image, otp, otpExpiry });
                         await newUser.save();
 
+                        setTimeout(async () => {
+                            const user = await userModel.findOne({ email: newUser.email, role: newUser.role });
+                            if (user && user.isVerified !== 1) {
+                                if (user.image) {
+                                    const imageId = user.image.split('/').pop().split('.')[0];
+                                    await cloudinary.uploader.destroy(`MarketPlace/Profiles/${imageId}`);
+                                }
+                                await userModel.deleteOne({ _id: user._id });
+                            }
+                        }, 2 * 60 * 1000);
+
                         const msg = `<div style="font-family: 'Roboto', sans-serif; width: 100%;">
         <div style="background: #5AB2FF; padding: 10px 20px; border-radius: 3px; border: none">
             <a href="" style="font-size:1.6em; color: white; text-decoration:none; font-weight:600">MarketPlace</a>
         </div>
         <p>Hello <span style="color: #5AB2FF; font-size: 1.2em; text-transform: capitalize;">${newUser.firstName}</span>!</p>
-        <p>Thank you for choosing MarketPlace. Use the following OTP to complete your Sign Up procedure. This OTP is valid for 15 minutes.</p>
+        <p>Thank you for choosing MarketPlace. Use the following OTP to complete your Sign Up procedure. This OTP is valid for 5 minutes.</p>
         <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
             <div style="background: #5AB2FF; color: white; width: fit-content; border-radius: 3px; padding: 5px 10px; font-size: 1.4em;">${otp}</div>
         </div>

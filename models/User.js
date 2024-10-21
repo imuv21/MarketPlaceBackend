@@ -204,10 +204,6 @@ const userSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
-    isVerified: {
-        type: Number,
-        default: 0,
-    },
     otp: {
         type: String,
         trim: true,
@@ -215,13 +211,14 @@ const userSchema = new mongoose.Schema({
     otpExpiry: {
         type: Date,
     },
+    isVerified: {
+        type: Number,
+        default: 0,
+    },
 
     notifications: [notificationSchema],
-
     messages: [messageSchema],
-
     orders: [orderSchema],
-
     friendReq: {
         type: Array,
         default: [],

@@ -4,10 +4,11 @@ import authedUser from '../middlewares/authMdlware.js';
 import { sendMailVerificationValidator, signupValidator, loginValidator, forgotPasswordValidator } from '../helpers/validation.js';
 import userCont from '../controllers/userCont.js';
 import upload from '../middlewares/upload.js';
+import rateLimiter from '../middlewares/rateLimiter.js';
 const router = express.Router();
 
 // Public routes
-router.post('/signup', upload.single('image'), signupValidator, userCont.userSignup);
+router.post('/signup', rateLimiter({ windowMs: 60 * 60 * 1000, max: 5 }), upload.single('image'), signupValidator, userCont.userSignup);
 router.post('/send-mail-verification', sendMailVerificationValidator, userCont.sendMailVerification);
 router.post('/login', loginValidator, userCont.userLogin);
 router.get('/logout', userCont.userLogout);
@@ -49,7 +50,6 @@ router.get('/get-message/:senderId/:receiverId', userCont.getMessages);
 router.get('/search', userCont.searchUsers);
 router.get('/get-orders', userCont.getOrders);
 
-// router.get('/mail-verification', userCont.mailVerification);
 
 
 export default router;

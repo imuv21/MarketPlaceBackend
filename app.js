@@ -35,7 +35,7 @@ app.use(cors({
 // Rate Limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 450 // limit each IP to 450 requests per windowMs
+    max: 300 // limit each IP to 300 requests per windowMs
 });
 app.use(limiter);
 
