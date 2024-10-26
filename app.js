@@ -29,7 +29,8 @@ app.use(helmet());
 //cors
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://imuv21.netlify.app"
+    "https://imuv21.netlify.app",
+    "*"
 ];
 app.use(cors({
     origin: function (origin, callback) {

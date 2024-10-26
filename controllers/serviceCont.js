@@ -265,7 +265,7 @@ class serviceCont {
                 "Content-Type": mimeType || "application/octet-stream",
                 "Access-Control-Allow-Origin": "*",
                 "Cross-Origin-Resource-Policy": "cross-origin"
-            });            
+            });           
 
             // Stream the requested chunk
             const stream = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream", headers: { Range: `bytes=${chunkStart}-${chunkEnd}` }});

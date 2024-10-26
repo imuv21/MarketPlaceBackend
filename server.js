@@ -8,7 +8,8 @@ const PORT = process.env.PORT;
 const NODE_ENV = process.env.NODE_ENV;
 const allowedOrigins = [
     "http://localhost:5173",
-    "https://imuv21.netlify.app"
+    "https://imuv21.netlify.app",
+    "*"
 ];
 const server = createServer(app);
 const io = new Server(server, {
