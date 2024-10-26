@@ -1,15 +1,9 @@
 import urlModel from '../models/Url.js';
-import zlib from 'zlib';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { nanoid } from 'nanoid';
 import sendMail from '../helpers/mailer.js';
+import { nanoid } from 'nanoid';
+import { drive } from '../app.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const BACKEND_URL = process.env.BACKEND_URL;
-
 
 class serviceCont {
 
@@ -241,27 +235,51 @@ class serviceCont {
         }
     };
 
-    //Streams and using zlib
+    //Streams
 
-    static streams = async (req, res) => {
-        const filePath = path.join(__dirname, '../rough/convo.txt');
-        const zfilePath = path.join(__dirname, '../rough/convo.zip');
-        const gzipStream = fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(fs.createWriteStream(zfilePath));
+    static streamVideo = async (req, res) => {
+        const fileId = req.params.fileId;
+        const range = req.headers.range;
 
-        gzipStream.on('finish', () => {
-            const stream = fs.createReadStream(filePath, 'utf8');
-            stream.on('data', (chunk) => res.write(chunk));
-            stream.on('end', () => res.end());
-            stream.on('error', (err) => {
-                res.status(500).send('Internal Server Error');
-            });
-        });
+        if (!range || !fileId) {
+            return res.status(400).json({ message: "Range header or File Id is missing" });
+        }
 
-        gzipStream.on('error', (err) => {
-            res.status(500).send('Internal Server Error');
-        });
+        try {
+            const { data: fileMetadata } = await drive.files.get({ fileId, fields: "size, mimeType, name"});
+
+            const mimeType = fileMetadata.mimeType;
+            const fileSize = parseInt(fileMetadata.size, 10);
+
+            // Parse range header to get the chunk size
+            const [start, end] = range.replace(/bytes=/, "").split("-");
+            const chunkStart = parseInt(start, 10);
+            const chunkEnd = end ? parseInt(end, 10) : fileSize - 1;
+            const contentLength = chunkEnd - chunkStart + 1;
+
+            // Set headers for partial content response
+            res.writeHead(206, {
+                "Content-Range": `bytes ${chunkStart}-${chunkEnd}/${fileSize}`,
+                "Accept-Ranges": "bytes",
+                "Content-Length": contentLength,
+                "Content-Type": mimeType || "application/octet-stream",
+                "Access-Control-Allow-Origin": "*",
+                "Cross-Origin-Resource-Policy": "cross-origin"
+            });            
+
+            // Stream the requested chunk
+            const stream = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream", headers: { Range: `bytes=${chunkStart}-${chunkEnd}` }});
+
+            stream.data.on("error", (err) => {
+                console.error("Error streaming video:", err);
+                return res.status(500).json({ message: "Error streaming video" });
+            }).pipe(res);
+
+        } catch (error) {
+            console.error("Error fetching video:", error);
+            return res.status(404).json({ message: "Video not found" });
+        }
     };
 }
-
 
 export default serviceCont;

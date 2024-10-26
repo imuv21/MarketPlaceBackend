@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "evident-sunspot-428607-b6",
+  "private_key_id": "88f9b899409e13584a6c0f03c155aec68b6d5921",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDbziFYtbPQCkMR\nUFTO0DQSoy6DTrNkWoZFA+vqHJRBIe2XwroSeq5pmdJ2zNkg3kVC9zxbkyjLspVc\n4ma0NwGbeAzYDIw2u/RqgAAtRLEdmKtTLEvsfQOONqdVYlGuaa5uvPxrUvVNlCDM\nyTCdIz06+Wuah5+tI35QVV7nLMt05y1I9faR7Q3b/jlhF0FoK641/eJUCVDEtRrq\noViS1yOuWmNmRL+8t1DydiSnSdyssW3KHmLQT2eJV1gDVA1heo1SWJo/974TN9GN\nkXOkxIKJJf/LydRVUkL0EsllwIpAoKC+qwGmS3Oc01boY2/1xbjX5LWN7I6JbJL/\nZOR63tmrAgMBAAECggEAAIKmg4EMf/+oxIoGCw2NtBC1Q3Bz1y2koSq5/1WopyFl\nM/8rlRkRfZpHVFJJG3FDV5KhDRS25AjanZgYT/POvlCANczgUyI1lj0M2GNlRox7\nsq+Sz45CFgWczC8fFxi/YxoaO0TlNT8STRdsfvjoI/0UmbZrPFOC8BHQAhkRsd2f\nHEQNRU+CPugBG8iJsYUgxwXxCD7pj7k4SYJIDVnXI7y5XK0ysgFp1y0k0IE0PpOd\nEAw0x84rQsStjFS4DjER5Ml8S6FWV+wjhcSnCsblPfzS9z1KWVI2DWDTmFbm4Upp\nE5bFD2Dhu8xoLJNCTiZVclHG1vUYFUAJAT7MedNs5QKBgQD2QDFmsUsoQkXrUVg1\nfToIdcKe8VrBO10ZLF17Xx1IewTzHwFe2+SnDsxotRHXinW88xkanxxrg6u3NZ7k\nSA1OpF7xHk4qBV45PfCibnU+z3cyl6RiLcD1X2QByS4Dg19xrs+GtTXiM/jzeS8I\nyQ08Zf+zGwVvzY1KwAiV5YXrPwKBgQDkgefUhm+cj3xGkVKSsKRRqJcjqo5b/uqi\nlcXdQny/B9JT2GgLk4gOriJRtQ/I8ABLEOPse955dsW7tN0q7piP9EbpJaUi5hBd\nTe6Gdy+MQ4aA1GGVBCMKaowORae/Vdx3H9FqbfUiWcF6vLS+h+Uv632OiFMA/mg/\nFVn42n2SlQKBgGpiVzVPWPHel8hOzzXkkOLAxUDXcmbSl6jdctFuyP7cLso91eC+\nTO0jRonh2ABvT+g+edT3cla8fr3ay3dB7YXRGzc96XTb9tXx/XifEcX96TgRLTJB\nJACdol3nJRrdcalyZTOEK/A6lc3Rx9Ea0r4KLsqY3ONtQSJPDiZ8DzwPAoGBANl9\nT1N3lTm1U/qyjJ4z5GIYjaoTxqWHDnorBYWfp64G2siU/Aqwo9odIWsVY23ECPNp\noxZNm6WOR4tuDOe06p5xSSDVhMSfpsm3yCRRwn7FMnriKfK0WkmquZ1H7O5u4YS8\nUwzylVPZjA6vF3UVUS13/SwxUpdqjXwlbVovUz+1AoGBAMYDxA9IjbQoZWI+Ue2f\nVZD3RsnkbisfEhZfDQZqsknTniLq/tvZvAu/yfNxeyJZ/tra8ysJSTNZaDE8nAfq\njCZhXDrgzRAb/6+Jpj/aEnyJ6tH0uu/31dWo637tSr+G4Wq9fUlXueIHDtzu0E49\nd+jKl8FLlM6hYHpX/t1hYw7X\n-----END PRIVATE KEY-----\n",
+  "client_email": "marketplace-stream@evident-sunspot-428607-b6.iam.gserviceaccount.com",
+  "client_id": "114004457111600165495",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/marketplace-stream%40evident-sunspot-428607-b6.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

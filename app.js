@@ -8,9 +8,20 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SitemapStream, streamToPromise } from 'sitemap';
+import { google } from "googleapis";
+import fs from "fs";
+import path from 'path';
+import { fileURLToPath } from 'url';
 export const app = express();
 
 const DATABASE_URL = process.env.DATABASE_URL
+
+
+// Create Google auth client
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const GOOGLE_CREDENTIALS = JSON.parse(fs.readFileSync(`${__dirname}/public/evident-sunspot-428607-b6-88f9b899409e.json`));
+
 
 // Security Headers
 app.use(helmet());
@@ -81,6 +92,13 @@ app.get('/sitemap.xml', async (req, res) => {
         res.status(500).end();
     }
 });
+
+//Google 
+const auth = new google.auth.GoogleAuth({
+    credentials: GOOGLE_CREDENTIALS,
+    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+});
+export const drive = google.drive({ version: "v3", auth });
 
 //Loading routes
 app.use("/api/v1/user", userRoute);

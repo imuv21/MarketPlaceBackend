@@ -12,6 +12,7 @@ const allowedOrigins = [
 ];
 const server = createServer(app);
 const io = new Server(server, {
+    path: "/socket.io",
     cors: {
         origin: function (origin, callback) {
             if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -25,7 +26,6 @@ const io = new Server(server, {
     }
 });
 app.set('socketio', io);
-
 
 // Socket.io
 io.on('connection', (socket) => {
@@ -60,7 +60,6 @@ io.on('connection', (socket) => {
         console.log(`User disconnected with id ${socket.id}`);
     });
 });
-
 
 // Listening to ports
 server.listen(PORT, () => {

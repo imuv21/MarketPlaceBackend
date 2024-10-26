@@ -2,7 +2,7 @@
   "name": "ulinkbackend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server",
     "dev": "nodemon server"
@@ -23,6 +23,7 @@
     "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.0",
     "express-validator": "^7.0.1",
+    "googleapis": "^144.0.0",
     "graphql": "^16.9.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
