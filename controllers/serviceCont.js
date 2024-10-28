@@ -1,7 +1,16 @@
+import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
+import { nanoid } from 'nanoid';
+import { v2 as cloudinary } from 'cloudinary';
 import urlModel from '../models/Url.js';
 import sendMail from '../helpers/mailer.js';
-import { nanoid } from 'nanoid';
-import { drive } from '../app.js';
+
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const BACKEND_URL = process.env.BACKEND_URL;
 
@@ -238,42 +247,45 @@ class serviceCont {
     //Streams
 
     static streamVideo = async (req, res) => {
-        const fileId = req.params.fileId;
+
         const range = req.headers.range;
+        const { publicId } = req.params;
 
-        if (!range || !fileId) {
-            return res.status(400).json({ message: "Range header or File Id is missing" });
+        if (!range || !publicId) {
+            return res.status(400).json({ message: "Range header or public id is missing" });
         }
-
+        const videoUrl = `https://res.cloudinary.com/dfsohhjfo/video/upload/Videos/${publicId}.mp4`;
         try {
-            const { data: fileMetadata } = await drive.files.get({ fileId, fields: "size, mimeType, name"});
-
-            const mimeType = fileMetadata.mimeType;
-            const fileSize = parseInt(fileMetadata.size, 10);
-
-            // Parse range header to get the chunk size
+            const headResponse = await axios.head(videoUrl);
+            const fileSize = parseInt(headResponse.headers["content-length"], 10);
+            const mimeType = headResponse.headers["content-type"];
             const [start, end] = range.replace(/bytes=/, "").split("-");
             const chunkStart = parseInt(start, 10);
             const chunkEnd = end ? parseInt(end, 10) : fileSize - 1;
             const contentLength = chunkEnd - chunkStart + 1;
 
-            // Set headers for partial content response
             res.writeHead(206, {
                 "Content-Range": `bytes ${chunkStart}-${chunkEnd}/${fileSize}`,
                 "Accept-Ranges": "bytes",
                 "Content-Length": contentLength,
-                "Content-Type": mimeType || "application/octet-stream",
-                "Access-Control-Allow-Origin": "*",
-                "Cross-Origin-Resource-Policy": "cross-origin"
-            });           
+                "Content-Type": mimeType,
+                "Cross-Origin-Resource-Policy": "cross-origin", 
+                "Access-Control-Allow-Origin": "*",             
+                "Access-Control-Allow-Headers": "Range",       
+            });
 
-            // Stream the requested chunk
-            const stream = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream", headers: { Range: `bytes=${chunkStart}-${chunkEnd}` }});
+            const videoStream = await axios({
+                url: videoUrl,
+                method: "get",
+                responseType: "stream",
+                headers: { Range: `bytes=${chunkStart}-${chunkEnd}` },
+            });
 
-            stream.data.on("error", (err) => {
+            videoStream.data.pipe(res);
+            videoStream.data.on("error", (err) => {
                 console.error("Error streaming video:", err);
                 return res.status(500).json({ message: "Error streaming video" });
-            }).pipe(res);
+            });
 
         } catch (error) {
             console.error("Error fetching video:", error);

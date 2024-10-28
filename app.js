@@ -8,33 +8,18 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SitemapStream, streamToPromise } from 'sitemap';
-import { google } from "googleapis";
-import fs from "fs";
-import path from 'path';
-import { fileURLToPath } from 'url';
 export const app = express();
 
 const DATABASE_URL = process.env.DATABASE_URL
 
-
-// Create Google auth client
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const GOOGLE_CREDENTIALS = JSON.parse(fs.readFileSync(`${__dirname}/public/evident-sunspot-428607-b6-88f9b899409e.json`));
-
-
-// Security Headers
-app.use(helmet());
-
 //cors
-const allowedOrigins = [
+export const allowedOrigins = [
     "http://localhost:5173",
-    "https://imuv21.netlify.app",
-    "*"
+    "https://imuv21.netlify.app"
 ];
-app.use(cors({
+const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -42,7 +27,13 @@ app.use(cors({
     },
     methods: "GET,POST,PUT,PATCH,DELETE",
     credentials: true
-}));
+};
+
+// Security Headers
+app.use(helmet());
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -93,13 +84,6 @@ app.get('/sitemap.xml', async (req, res) => {
         res.status(500).end();
     }
 });
-
-//Google 
-const auth = new google.auth.GoogleAuth({
-    credentials: GOOGLE_CREDENTIALS,
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-});
-export const drive = google.drive({ version: "v3", auth });
 
 //Loading routes
 app.use("/api/v1/user", userRoute);

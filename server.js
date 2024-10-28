@@ -1,22 +1,19 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { app } from "./app.js";
+import { allowedOrigins } from './app.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const PORT = process.env.PORT;
 const NODE_ENV = process.env.NODE_ENV;
-const allowedOrigins = [
-    "http://localhost:5173",
-    "https://imuv21.netlify.app",
-    "*"
-];
 const server = createServer(app);
+
 const io = new Server(server, {
     path: "/socket.io",
     cors: {
         origin: function (origin, callback) {
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            if (!origin || allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
                 callback(new Error('Not allowed by CORS'));

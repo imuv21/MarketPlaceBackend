@@ -12,6 +12,6 @@ router.get('/analytics/:shortId', serviceCont.analytics);
 router.post('/sendbulkemails', serviceCont.sendEmailsInBulk);
 
 //streams
-router.get('/streamvideo/:fileId', serviceCont.streamVideo);
+router.get('/streamVideo/:publicId', serviceCont.streamVideo);
 
 export default router
