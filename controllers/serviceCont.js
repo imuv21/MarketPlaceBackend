@@ -249,12 +249,20 @@ class serviceCont {
     static streamVideo = async (req, res) => {
 
         const range = req.headers.range;
-        const { publicId } = req.params;
-
+        const { publicId, quality } = req.params;
         if (!range || !publicId) {
             return res.status(400).json({ message: "Range header or public id is missing" });
         }
-        const videoUrl = `https://res.cloudinary.com/dfsohhjfo/video/upload/Videos/${publicId}.mp4`;
+
+        const qualityTransformations = {
+            '360p': 'q_auto:low,h_360',
+            '480p': 'q_auto:medium,h_480',
+            '720p': 'q_auto:good,h_720',
+            '1080p': 'q_auto:best,h_1080'
+        };
+        const transformation = qualityTransformations[quality] || 'q_auto:good';
+        const videoUrl = `https://res.cloudinary.com/dfsohhjfo/video/upload/${transformation}/Videos/${publicId}.mp4`;
+
         try {
             const headResponse = await axios.head(videoUrl);
             const fileSize = parseInt(headResponse.headers["content-length"], 10);
